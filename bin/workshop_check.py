@@ -1,7 +1,6 @@
-'''Check that a workshop's index.html metadata is valid.  See the
+"""Check that a workshop's index.html metadata is valid.  See the
 docstrings on the checking functions for a summary of the checks.
-'''
-
+"""
 
 import sys
 import os
@@ -11,15 +10,15 @@ from util import split_metadata, load_yaml, check_unwanted_files
 from reporter import Reporter
 
 # Metadata field patterns.
-EMAIL_PATTERN = r'[^@]+@[^@]+\.[^@]+'
-HUMANTIME_PATTERN = r'((0?[1-9]|1[0-2]):[0-5]\d(am|pm)(-|to)(0?[1-9]|1[0-2]):[0-5]\d(am|pm))|((0?\d|1\d|2[0-3]):[0-5]\d(-|to)(0?\d|1\d|2[0-3]):[0-5]\d)'
-EVENTBRITE_PATTERN = r'\d{9,10}'
-URL_PATTERN = r'https?://.+'
-SLUG_PATTERN = r'\d{4}-\d{2}-\d{2}-[A-z0-9\-\_]+[^-_]$'
+EMAIL_PATTERN = r"[^@]+@[^@]+\.[^@]+"
+HUMANTIME_PATTERN = r"((0?[1-9]|1[0-2]):[0-5]\d(am|pm)(-|to)(0?[1-9]|1[0-2]):[0-5]\d(am|pm))|((0?\d|1\d|2[0-3]):[0-5]\d(-|to)(0?\d|1\d|2[0-3]):[0-5]\d)"
+EVENTBRITE_PATTERN = r"\d{9,10}"
+URL_PATTERN = r"https?://.+"
+SLUG_PATTERN = r"\d{4}-\d{2}-\d{2}-[A-z0-9\-\_]+[^-_]$"
 
 # Defaults.
 CARPENTRIES = ("dc", "swc", "lc", "cp")
-DEFAULT_CONTACT_EMAIL = 'team@carpentries.org'
+DEFAULT_CONTACT_EMAIL = "team@carpentries.org"
 
 USAGE = 'Usage: "workshop_check.py path/to/root/directory"'
 
@@ -27,46 +26,438 @@ USAGE = 'Usage: "workshop_check.py path/to/root/directory"'
 # is 'Arabic' as a language but 'Argentina' as a country.
 
 ISO_COUNTRY = [
-    'ad', 'ae', 'af', 'ag', 'ai', 'al', 'am', 'an', 'ao', 'aq', 'ar', 'as',
-    'at', 'au', 'aw', 'ax', 'az', 'ba', 'bb', 'bd', 'be', 'bf', 'bg', 'bh',
-    'bi', 'bj', 'bm', 'bn', 'bo', 'br', 'bs', 'bt', 'bv', 'bw', 'by', 'bz',
-    'ca', 'cc', 'cd', 'cf', 'cg', 'ch', 'ci', 'ck', 'cl', 'cm', 'cn', 'co',
-    'cr', 'cu', 'cv', 'cx', 'cy', 'cz', 'de', 'dj', 'dk', 'dm', 'do', 'dz',
-    'ec', 'ee', 'eg', 'eh', 'er', 'es', 'et', 'eu', 'fi', 'fj', 'fk', 'fm',
-    'fo', 'fr', 'ga', 'gb', 'gd', 'ge', 'gf', 'gg', 'gh', 'gi', 'gl', 'gm',
-    'gn', 'gp', 'gq', 'gr', 'gs', 'gt', 'gu', 'gw', 'gy', 'hk', 'hm', 'hn',
-    'hr', 'ht', 'hu', 'id', 'ie', 'il', 'im', 'in', 'io', 'iq', 'ir', 'is',
-    'it', 'je', 'jm', 'jo', 'jp', 'ke', 'kg', 'kh', 'ki', 'km', 'kn', 'kp',
-    'kr', 'kw', 'ky', 'kz', 'la', 'lb', 'lc', 'li', 'lk', 'lr', 'ls', 'lt',
-    'lu', 'lv', 'ly', 'ma', 'mc', 'md', 'me', 'mg', 'mh', 'mk', 'ml', 'mm',
-    'mn', 'mo', 'mp', 'mq', 'mr', 'ms', 'mt', 'mu', 'mv', 'mw', 'mx', 'my',
-    'mz', 'na', 'nc', 'ne', 'nf', 'ng', 'ni', 'nl', 'no', 'np', 'nr', 'nu',
-    'nz', 'om', 'pa', 'pe', 'pf', 'pg', 'ph', 'pk', 'pl', 'pm', 'pn', 'pr',
-    'ps', 'pt', 'pw', 'py', 'qa', 're', 'ro', 'rs', 'ru', 'rw', 'sa', 'sb',
-    'sc', 'sd', 'se', 'sg', 'sh', 'si', 'sj', 'sk', 'sl', 'sm', 'sn', 'so',
-    'sr', 'st', 'sv', 'sy', 'sz', 'tc', 'td', 'tf', 'tg', 'th', 'tj', 'tk',
-    'tl', 'tm', 'tn', 'to', 'tr', 'tt', 'tv', 'tw', 'tz', 'ua', 'ug', 'um',
-    'us', 'uy', 'uz', 'va', 'vc', 've', 'vg', 'vi', 'vn', 'vu', 'wf', 'ws',
-    'ye', 'yt', 'za', 'zm', 'zw'
+    "ad",
+    "ae",
+    "af",
+    "ag",
+    "ai",
+    "al",
+    "am",
+    "an",
+    "ao",
+    "aq",
+    "ar",
+    "as",
+    "at",
+    "au",
+    "aw",
+    "ax",
+    "az",
+    "ba",
+    "bb",
+    "bd",
+    "be",
+    "bf",
+    "bg",
+    "bh",
+    "bi",
+    "bj",
+    "bm",
+    "bn",
+    "bo",
+    "br",
+    "bs",
+    "bt",
+    "bv",
+    "bw",
+    "by",
+    "bz",
+    "ca",
+    "cc",
+    "cd",
+    "cf",
+    "cg",
+    "ch",
+    "ci",
+    "ck",
+    "cl",
+    "cm",
+    "cn",
+    "co",
+    "cr",
+    "cu",
+    "cv",
+    "cx",
+    "cy",
+    "cz",
+    "de",
+    "dj",
+    "dk",
+    "dm",
+    "do",
+    "dz",
+    "ec",
+    "ee",
+    "eg",
+    "eh",
+    "er",
+    "es",
+    "et",
+    "eu",
+    "fi",
+    "fj",
+    "fk",
+    "fm",
+    "fo",
+    "fr",
+    "ga",
+    "gb",
+    "gd",
+    "ge",
+    "gf",
+    "gg",
+    "gh",
+    "gi",
+    "gl",
+    "gm",
+    "gn",
+    "gp",
+    "gq",
+    "gr",
+    "gs",
+    "gt",
+    "gu",
+    "gw",
+    "gy",
+    "hk",
+    "hm",
+    "hn",
+    "hr",
+    "ht",
+    "hu",
+    "id",
+    "ie",
+    "il",
+    "im",
+    "in",
+    "io",
+    "iq",
+    "ir",
+    "is",
+    "it",
+    "je",
+    "jm",
+    "jo",
+    "jp",
+    "ke",
+    "kg",
+    "kh",
+    "ki",
+    "km",
+    "kn",
+    "kp",
+    "kr",
+    "kw",
+    "ky",
+    "kz",
+    "la",
+    "lb",
+    "lc",
+    "li",
+    "lk",
+    "lr",
+    "ls",
+    "lt",
+    "lu",
+    "lv",
+    "ly",
+    "ma",
+    "mc",
+    "md",
+    "me",
+    "mg",
+    "mh",
+    "mk",
+    "ml",
+    "mm",
+    "mn",
+    "mo",
+    "mp",
+    "mq",
+    "mr",
+    "ms",
+    "mt",
+    "mu",
+    "mv",
+    "mw",
+    "mx",
+    "my",
+    "mz",
+    "na",
+    "nc",
+    "ne",
+    "nf",
+    "ng",
+    "ni",
+    "nl",
+    "no",
+    "np",
+    "nr",
+    "nu",
+    "nz",
+    "om",
+    "pa",
+    "pe",
+    "pf",
+    "pg",
+    "ph",
+    "pk",
+    "pl",
+    "pm",
+    "pn",
+    "pr",
+    "ps",
+    "pt",
+    "pw",
+    "py",
+    "qa",
+    "re",
+    "ro",
+    "rs",
+    "ru",
+    "rw",
+    "sa",
+    "sb",
+    "sc",
+    "sd",
+    "se",
+    "sg",
+    "sh",
+    "si",
+    "sj",
+    "sk",
+    "sl",
+    "sm",
+    "sn",
+    "so",
+    "sr",
+    "st",
+    "sv",
+    "sy",
+    "sz",
+    "tc",
+    "td",
+    "tf",
+    "tg",
+    "th",
+    "tj",
+    "tk",
+    "tl",
+    "tm",
+    "tn",
+    "to",
+    "tr",
+    "tt",
+    "tv",
+    "tw",
+    "tz",
+    "ua",
+    "ug",
+    "um",
+    "us",
+    "uy",
+    "uz",
+    "va",
+    "vc",
+    "ve",
+    "vg",
+    "vi",
+    "vn",
+    "vu",
+    "wf",
+    "ws",
+    "ye",
+    "yt",
+    "za",
+    "zm",
+    "zw",
 ]
 
 ISO_LANGUAGE = [
-    'aa', 'ab', 'ae', 'af', 'ak', 'am', 'an', 'ar', 'as', 'av', 'ay', 'az',
-    'ba', 'be', 'bg', 'bh', 'bi', 'bm', 'bn', 'bo', 'br', 'bs', 'ca', 'ce',
-    'ch', 'co', 'cr', 'cs', 'cu', 'cv', 'cy', 'da', 'de', 'dv', 'dz', 'ee',
-    'el', 'en', 'eo', 'es', 'et', 'eu', 'fa', 'ff', 'fi', 'fj', 'fo', 'fr',
-    'fy', 'ga', 'gd', 'gl', 'gn', 'gu', 'gv', 'ha', 'he', 'hi', 'ho', 'hr',
-    'ht', 'hu', 'hy', 'hz', 'ia', 'id', 'ie', 'ig', 'ii', 'ik', 'io', 'is',
-    'it', 'iu', 'ja', 'jv', 'ka', 'kg', 'ki', 'kj', 'kk', 'kl', 'km', 'kn',
-    'ko', 'kr', 'ks', 'ku', 'kv', 'kw', 'ky', 'la', 'lb', 'lg', 'li', 'ln',
-    'lo', 'lt', 'lu', 'lv', 'mg', 'mh', 'mi', 'mk', 'ml', 'mn', 'mr', 'ms',
-    'mt', 'my', 'na', 'nb', 'nd', 'ne', 'ng', 'nl', 'nn', 'no', 'nr', 'nv',
-    'ny', 'oc', 'oj', 'om', 'or', 'os', 'pa', 'pi', 'pl', 'ps', 'pt', 'qu',
-    'rm', 'rn', 'ro', 'ru', 'rw', 'sa', 'sc', 'sd', 'se', 'sg', 'si', 'sk',
-    'sl', 'sm', 'sn', 'so', 'sq', 'sr', 'ss', 'st', 'su', 'sv', 'sw', 'ta',
-    'te', 'tg', 'th', 'ti', 'tk', 'tl', 'tn', 'to', 'tr', 'ts', 'tt', 'tw',
-    'ty', 'ug', 'uk', 'ur', 'uz', 've', 'vi', 'vo', 'wa', 'wo', 'xh', 'yi',
-    'yo', 'za', 'zh', 'zu'
+    "aa",
+    "ab",
+    "ae",
+    "af",
+    "ak",
+    "am",
+    "an",
+    "ar",
+    "as",
+    "av",
+    "ay",
+    "az",
+    "ba",
+    "be",
+    "bg",
+    "bh",
+    "bi",
+    "bm",
+    "bn",
+    "bo",
+    "br",
+    "bs",
+    "ca",
+    "ce",
+    "ch",
+    "co",
+    "cr",
+    "cs",
+    "cu",
+    "cv",
+    "cy",
+    "da",
+    "de",
+    "dv",
+    "dz",
+    "ee",
+    "el",
+    "en",
+    "eo",
+    "es",
+    "et",
+    "eu",
+    "fa",
+    "ff",
+    "fi",
+    "fj",
+    "fo",
+    "fr",
+    "fy",
+    "ga",
+    "gd",
+    "gl",
+    "gn",
+    "gu",
+    "gv",
+    "ha",
+    "he",
+    "hi",
+    "ho",
+    "hr",
+    "ht",
+    "hu",
+    "hy",
+    "hz",
+    "ia",
+    "id",
+    "ie",
+    "ig",
+    "ii",
+    "ik",
+    "io",
+    "is",
+    "it",
+    "iu",
+    "ja",
+    "jv",
+    "ka",
+    "kg",
+    "ki",
+    "kj",
+    "kk",
+    "kl",
+    "km",
+    "kn",
+    "ko",
+    "kr",
+    "ks",
+    "ku",
+    "kv",
+    "kw",
+    "ky",
+    "la",
+    "lb",
+    "lg",
+    "li",
+    "ln",
+    "lo",
+    "lt",
+    "lu",
+    "lv",
+    "mg",
+    "mh",
+    "mi",
+    "mk",
+    "ml",
+    "mn",
+    "mr",
+    "ms",
+    "mt",
+    "my",
+    "na",
+    "nb",
+    "nd",
+    "ne",
+    "ng",
+    "nl",
+    "nn",
+    "no",
+    "nr",
+    "nv",
+    "ny",
+    "oc",
+    "oj",
+    "om",
+    "or",
+    "os",
+    "pa",
+    "pi",
+    "pl",
+    "ps",
+    "pt",
+    "qu",
+    "rm",
+    "rn",
+    "ro",
+    "ru",
+    "rw",
+    "sa",
+    "sc",
+    "sd",
+    "se",
+    "sg",
+    "si",
+    "sk",
+    "sl",
+    "sm",
+    "sn",
+    "so",
+    "sq",
+    "sr",
+    "ss",
+    "st",
+    "su",
+    "sv",
+    "sw",
+    "ta",
+    "te",
+    "tg",
+    "th",
+    "ti",
+    "tk",
+    "tl",
+    "tn",
+    "to",
+    "tr",
+    "ts",
+    "tt",
+    "tw",
+    "ty",
+    "ug",
+    "uk",
+    "ur",
+    "uz",
+    "ve",
+    "vi",
+    "vo",
+    "wa",
+    "wo",
+    "xh",
+    "yi",
+    "yo",
+    "za",
+    "zh",
+    "zu",
 ]
 
 
@@ -74,31 +465,34 @@ def look_for_fixme(func):
     """Decorator to fail test if text argument starts with "FIXME"."""
 
     def inner(arg):
-        if (arg is not None) and \
-           isinstance(arg, str) and \
-           arg.lstrip().startswith('FIXME'):
+        if (
+            (arg is not None)
+            and isinstance(arg, str)
+            and arg.lstrip().startswith("FIXME")
+        ):
             return False
         return func(arg)
+
     return inner
 
 
 @look_for_fixme
 def check_layout(layout):
-    '''"layout" in YAML header must be "workshop".'''
+    """ "layout" in YAML header must be "workshop"."""
 
-    return layout == 'workshop'
+    return layout == "workshop"
 
 
 @look_for_fixme
 def check_country(country):
-    '''"country" must be a lowercase ISO-3166 two-letter code.'''
+    """ "country" must be a lowercase ISO-3166 two-letter code."""
 
     return country in ISO_COUNTRY
 
 
 @look_for_fixme
 def check_language(language):
-    '''"language" must be a lowercase ISO-639 two-letter code.'''
+    """ "language" must be a lowercase ISO-639 two-letter code."""
 
     return language in ISO_LANGUAGE
 
@@ -112,19 +506,24 @@ def check_humandate(date):
     month name should be kept short to aid formatting of the main
     Carpentries web site.
     """
+    if "&" in date:
+        for date in date.split("&"):
+            if not check_humandate(date.strip()):
+                return False
+        return True
 
-    if ',' not in date:
+    if "," not in date:
         return False
 
-    month_dates, year = date.split(',')
+    month_dates, year = date.split(",")
 
     # The first three characters of month_dates are not empty
     month = month_dates[:3]
-    if any(char == ' ' for char in month):
+    if any(char == " " for char in month):
         return False
 
     # But the fourth character is empty ("February" is illegal)
-    if month_dates[3] != ' ':
+    if month_dates[3] != " ":
         return False
 
     # year contains *only* numbers
@@ -143,7 +542,7 @@ def check_humantime(time):
     workshop, such as '09:00 - 16:00'.
     """
 
-    return bool(re.match(HUMANTIME_PATTERN, time.replace(' ', '')))
+    return bool(re.match(HUMANTIME_PATTERN, time.replace(" ", "")))
 
 
 def check_date(this_date):
@@ -166,9 +565,10 @@ def check_latitude(latitude):
 
     try:
         lat = float(latitude)
-        return (-90.0 <= lat <= 90.0)
+        return -90.0 <= lat <= 90.0
     except ValueError:
         return False
+
 
 def check_longitude(longitude):
     """
@@ -178,9 +578,10 @@ def check_longitude(longitude):
 
     try:
         lat = float(longitude)
-        return (-180.0 <= lat <= 180)
+        return -180.0 <= lat <= 180
     except ValueError:
         return False
+
 
 def check_instructors(instructors):
     """
@@ -213,9 +614,11 @@ def check_emails(emails):
     """
 
     # YAML automatically loads list-like strings as lists.
-    if (isinstance(emails, list) and len(emails) >= 0):
+    if isinstance(emails, list) and len(emails) >= 0:
         for email in emails:
-            if ((not bool(re.match(EMAIL_PATTERN, email))) or (email == DEFAULT_CONTACT_EMAIL)):
+            if (not bool(re.match(EMAIL_PATTERN, email))) or (
+                email == DEFAULT_CONTACT_EMAIL
+            ):
                 return False
     else:
         return False
@@ -255,61 +658,82 @@ def check_pass(value):
 
 
 HANDLERS = {
-    'layout':     (True, check_layout, 'layout isn\'t "workshop"'),
-
-    'country':    (True, check_country,
-                   'country invalid: must use lowercase two-letter ISO code ' +
-                   'from ' + ', '.join(ISO_COUNTRY)),
-
-    'language':   (False,  check_language,
-                   'language invalid: must use lowercase two-letter ISO code' +
-                   ' from ' + ', '.join(ISO_LANGUAGE)),
-
-    'humandate':  (True, check_humandate,
-                   'humandate invalid. Please use three-letter months like ' +
-                   '"Jan" and four-letter years like "2025"'),
-
-    'humantime':  (True, check_humantime,
-                   'humantime is misformatted. Acceptable formats are '
-                   '"9:00 am - 5:00 pm", "09:00am - 05:00pm", "09:00-17:00" '
-                   '(spaces are ignored).'),
-
-    'startdate':  (True, check_date,
-                   'startdate invalid. Must be of format year-month-day, ' +
-                   'i.e., 2014-01-31'),
-
-    'enddate':    (False, check_date,
-                   'enddate invalid. Must be of format year-month-day, i.e.,' +
-                   ' 2014-01-31'),
-
-    'latitude':    (True, check_latitude,
-                   'latitude invalid. Check that it is a floating point, ' +
-                   'between -90 and 90'),
-
-    'longitude':    (True, check_longitude,
-                   'longitude invalid. Check that it is a floating point, ' +
-                   'between -180 and 180'),
-
-    'instructor': (True, check_instructors,
-                   'instructor list isn\'t a valid list of format ' +
-                   '["First instructor", "Second instructor",..]'),
-
-    'helper':     (True, check_helpers,
-                   'helper list isn\'t a valid list of format ' +
-                   '["First helper", "Second helper",..]'),
-
-    'email':    (True, check_emails,
-                 'contact email list isn\'t a valid list of format ' +
-                 '["me@example.org", "you@example.org",..] or contains incorrectly formatted email addresses or ' +
-                 '"{0}".'.format(DEFAULT_CONTACT_EMAIL)),
-
-    'eventbrite': (False, check_eventbrite, 'Eventbrite key appears invalid'),
-
-    'collaborative_notes':   (False, check_collaborative_notes, 'Collaborative Notes URL appears invalid'),
-
-    'venue':      (False, check_pass, 'venue name not specified'),
-
-    'address':    (False, check_pass, 'address not specified')
+    "layout": (True, check_layout, 'layout isn\'t "workshop"'),
+    "country": (
+        True,
+        check_country,
+        "country invalid: must use lowercase two-letter ISO code "
+        + "from "
+        + ", ".join(ISO_COUNTRY),
+    ),
+    "language": (
+        False,
+        check_language,
+        "language invalid: must use lowercase two-letter ISO code"
+        + " from "
+        + ", ".join(ISO_LANGUAGE),
+    ),
+    "humandate": (
+        True,
+        check_humandate,
+        "humandate invalid. Please use three-letter months like "
+        + '"Jan" and four-letter years like "2025"',
+    ),
+    "humantime": (
+        True,
+        check_humantime,
+        "humantime is misformatted. Acceptable formats are "
+        '"9:00 am - 5:00 pm", "09:00am - 05:00pm", "09:00-17:00" '
+        "(spaces are ignored).",
+    ),
+    "startdate": (
+        True,
+        check_date,
+        "startdate invalid. Must be of format year-month-day, " + "i.e., 2014-01-31",
+    ),
+    "enddate": (
+        False,
+        check_date,
+        "enddate invalid. Must be of format year-month-day, i.e.," + " 2014-01-31",
+    ),
+    "latitude": (
+        True,
+        check_latitude,
+        "latitude invalid. Check that it is a floating point, " + "between -90 and 90",
+    ),
+    "longitude": (
+        True,
+        check_longitude,
+        "longitude invalid. Check that it is a floating point, "
+        + "between -180 and 180",
+    ),
+    "instructor": (
+        True,
+        check_instructors,
+        "instructor list isn't a valid list of format "
+        + '["First instructor", "Second instructor",..]',
+    ),
+    "helper": (
+        True,
+        check_helpers,
+        "helper list isn't a valid list of format "
+        + '["First helper", "Second helper",..]',
+    ),
+    "email": (
+        True,
+        check_emails,
+        "contact email list isn't a valid list of format "
+        + '["me@example.org", "you@example.org",..] or contains incorrectly formatted email addresses or '
+        + '"{0}".'.format(DEFAULT_CONTACT_EMAIL),
+    ),
+    "eventbrite": (False, check_eventbrite, "Eventbrite key appears invalid"),
+    "collaborative_notes": (
+        False,
+        check_collaborative_notes,
+        "Collaborative Notes URL appears invalid",
+    ),
+    "venue": (False, check_pass, "venue name not specified"),
+    "address": (False, check_pass, "address not specified"),
 }
 
 # REQUIRED is all required categories.
@@ -324,12 +748,13 @@ def check_blank_lines(reporter, raw):
     Blank lines are not allowed in category headers.
     """
 
-    lines = [(i, x) for (i, x) in enumerate(
-        raw.strip().split('\n')) if not x.strip()]
-    reporter.check(not lines,
-                   None,
-                   'Blank line(s) in header: {0}',
-                   ', '.join(["{0}: {1}".format(i, x.rstrip()) for (i, x) in lines]))
+    lines = [(i, x) for (i, x) in enumerate(raw.strip().split("\n")) if not x.strip()]
+    reporter.check(
+        not lines,
+        None,
+        "Blank line(s) in header: {0}",
+        ", ".join(["{0}: {1}".format(i, x.rstrip()) for (i, x) in lines]),
+    )
 
 
 def check_categories(reporter, left, right, msg):
@@ -338,10 +763,9 @@ def check_categories(reporter, left, right, msg):
     """
 
     diff = left - right
-    reporter.check(len(diff) == 0,
-                   None,
-                   '{0}: offending entries {1}',
-                   msg, sorted(list(diff)))
+    reporter.check(
+        len(diff) == 0, None, "{0}: offending entries {1}", msg, sorted(list(diff))
+    )
 
 
 def check_file(reporter, path, data):
@@ -364,21 +788,22 @@ def check_file(reporter, path, data):
         required, handler, message = HANDLERS[category]
         if category in header:
             if required or header[category]:
-                reporter.check(handler(header[category]),
-                               None,
-                               '{0}\n    actual value "{1}"',
-                               message, header[category])
+                reporter.check(
+                    handler(header[category]),
+                    None,
+                    '{0}\n    actual value "{1}"',
+                    message,
+                    header[category],
+                )
         elif required:
-            reporter.add(None,
-                         'Missing mandatory key "{0}"',
-                         category)
+            reporter.add(None, 'Missing mandatory key "{0}"', category)
 
     # Check whether we have missing or too many categories
     seen_categories = set(header.keys())
-    check_categories(reporter, REQUIRED, seen_categories,
-                     'Missing categories')
-    check_categories(reporter, seen_categories, REQUIRED.union(OPTIONAL),
-                     'Superfluous categories')
+    check_categories(reporter, REQUIRED, seen_categories, "Missing categories")
+    check_categories(
+        reporter, seen_categories, REQUIRED.union(OPTIONAL), "Superfluous categories"
+    )
 
 
 def check_config(reporter, filename):
@@ -388,17 +813,18 @@ def check_config(reporter, filename):
 
     config = load_yaml(filename)
 
-    kind = config.get('kind', None)
-    reporter.check(kind == 'workshop',
-                   filename,
-                   'Missing or unknown kind of event: {0}',
-                   kind)
+    kind = config.get("kind", None)
+    reporter.check(
+        kind == "workshop", filename, "Missing or unknown kind of event: {0}", kind
+    )
 
-    carpentry = config.get('carpentry', None)
-    reporter.check(carpentry in ('swc', 'dc', 'lc', 'cp'),
-                   filename,
-                   'Missing or unknown carpentry: {0}',
-                   carpentry)
+    carpentry = config.get("carpentry", None)
+    reporter.check(
+        carpentry in ("swc", "dc", "lc", "cp"),
+        filename,
+        "Missing or unknown carpentry: {0}",
+        carpentry,
+    )
 
 
 def check_slug(reporter, filename, repo_dir):
@@ -406,13 +832,13 @@ def check_slug(reporter, filename, repo_dir):
 
     repo_name = os.path.basename(os.path.realpath(repo_dir))
 
-    carpentry = config.get('carpentry', None)
+    carpentry = config.get("carpentry", None)
 
     slugfmt = "YYYY-MM-DD-site[-online]"
-    if (repo_name != "workshop-template"):
-        if carpentry in ('swc', 'dc', 'lc'):
+    if repo_name != "workshop-template":
+        if carpentry in ("swc", "dc", "lc"):
             fail_msg = (
-                'Website repository name `{0}` does not match the required slug format: `{1}`. '
+                "Website repository name `{0}` does not match the required slug format: `{1}`. "
                 'Please rename your repository to a valid slug using the rename option in the "Settings" menu.'
             )
 
@@ -420,29 +846,32 @@ def check_slug(reporter, filename, repo_dir):
                 print(fail_msg.format(repo_name, slugfmt))
                 sys.exit(1)
 
-        elif carpentry in ('cp', 'incubator'):
+        elif carpentry in ("cp", "incubator"):
             warn_msg = (
-                'Website repository name `{0}` does not match the suggested slug format: `{1}`. '
-                'If teaching a workshop which you are collecting surveys for or are submitting into AMY, '
+                "Website repository name `{0}` does not match the suggested slug format: `{1}`. "
+                "If teaching a workshop which you are collecting surveys for or are submitting into AMY, "
                 'please rename your repository to a valid slug using the rename option in the "Settings" menu.'
             )
 
-            reporter.check(bool(re.match(SLUG_PATTERN, repo_name)),
+            reporter.check(
+                bool(re.match(SLUG_PATTERN, repo_name)),
                 None,
                 warn_msg,
-                repo_name, slugfmt)
+                repo_name,
+                slugfmt,
+            )
 
 
 def main():
-    '''Run as the main program.'''
+    """Run as the main program."""
 
     if len(sys.argv) != 2:
         print(USAGE, file=sys.stderr)
         sys.exit(1)
 
     root_dir = sys.argv[1]
-    index_file = os.path.join(root_dir, 'index.md')
-    config_file = os.path.join(root_dir, '_config.yml')
+    index_file = os.path.join(root_dir, "index.md")
+    config_file = os.path.join(root_dir, "_config.yml")
 
     reporter = Reporter()
     check_config(reporter, config_file)
@@ -450,11 +879,11 @@ def main():
     check_slug(reporter, config_file, root_dir)
 
     check_unwanted_files(root_dir, reporter)
-    with open(index_file, encoding='utf-8') as reader:
+    with open(index_file, encoding="utf-8") as reader:
         data = reader.read()
         check_file(reporter, index_file, data)
     reporter.report()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
