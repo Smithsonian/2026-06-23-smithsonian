@@ -25,7 +25,7 @@
           {% elsif online == "true_private" %}
           <p>Online</p>
           {% endif %}
-          <p>{{page.humandate}}</p>
+          <p>{{page.humandate | replace: " & ", "<br>"}}</p>
           <p>{% if page.humantime %}{{page.humantime}}{% endif %}</p>
         </div>
         <div class="col-md-6">
